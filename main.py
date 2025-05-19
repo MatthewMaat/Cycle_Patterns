@@ -40,7 +40,7 @@ def make_cycle_list(G):
     """
     makes list of all cycles of a graph
     :param G: Graph
-    :return: cycle_list
+    :return: list of cycles, where cycles are represented by lists of vertices
     """
     used_nodes = set()
     cycle_list = []
@@ -50,7 +50,12 @@ def make_cycle_list(G):
     return cycle_list
 
 def generate_and_print_random_valid_sign_list(LL):
-    #assign signs to cycles based on a valid pattern
+    """
+    Randomly generate a realizable cycle pattern given a list of cycles,
+    and then print it.
+    :param LL: list of cycles, each cycle represented by a list of vertices
+    :return: list of signs, where the i-th sign represents the i-th cycle from LL
+    """
     signlist = []
     n=len(G.edges)
     for e in G.edges:
@@ -58,6 +63,7 @@ def generate_and_print_random_valid_sign_list(LL):
     for L in LL:
         strr = ''
         tot = 0
+        #find the edges in the cycle, and add their weights to the total
         for i in range(len(L) - 1):
             strr += str(L[i].label) + '-'
             eset = G.find_edge(L[i], L[i+1])
@@ -80,6 +86,12 @@ def generate_and_print_random_valid_sign_list(LL):
     return signlist
 
 def generate_and_print_random_sign_list(LL):
+    """
+        Randomly generate a cycle pattern given a list of cycles,
+        (without any 0-cycles) and then print it.
+        :param LL: list of cycles, each cycle represented by a list of vertices
+        :return: list of signs, where the i-th sign represents the i-th cycle from LL
+        """
     signlist = []
     for L in LL:
         strr=''
@@ -92,14 +104,19 @@ def generate_and_print_random_sign_list(LL):
     return signlist
 
 def print_cycle_pattern(cycle_list, sign_list, numbers = None):
-    #print a list of cycles
-    #Inputs:
-    #cycle_list: list of cycles, each cycle given as list of vertices
-    #sign_list: list of signs, the i-th sign belonging to the i-th cycle.
-    #numbers: optional list for if one wants to show how many times we have a cycle
+    """
+    Print a cycle pattern
+    :param cycle_list: list of cycles, where a cycle is represented by a list of vertices
+    :param sign_list: list of signs, in the same order as the list of cycles
+    :param numbers: optional list for if one wants to display multiplicity of a cycle (for non-realizability witnesses)
+    :return:
+    """
 
     if len(cycle_list)!=len(sign_list):
         raise ValueError('Length of lists is not the same')
+    if numbers is not None:
+        if len(numbers) != len(cycle_list):
+            raise ValueError('Length of lists is not the same')
     signlist = []
     for ii in range(len(cycle_list)):
         L = cycle_list[ii]
@@ -115,7 +132,11 @@ def print_cycle_pattern(cycle_list, sign_list, numbers = None):
     return
 
 def cycle_text(L):
-    #turn a cycle into a string
+    """
+    Represent a cycle by a string
+    :param L: list of vertices of the cycle
+    :return: a string
+    """
     strr = ''
     for i in range(len(L) - 1):
         strr += str(L[i].label) + '-'
@@ -125,9 +146,9 @@ def cycle_text(L):
 def find_cycles(G, L, used_nodes):
     """
     subroutine that returns cycles containing the path L that do not use nodes from used_nodes
-    :param G:
-    :param L:
-    :param used_nodes:
+    :param G: graph
+    :param L: list of vertices on the path
+    :param used_nodes: nodes that are not allowed to be used, since they are already checked
     :return: cycle_list
     """
     cycle_list = []
@@ -144,20 +165,24 @@ def find_cycles(G, L, used_nodes):
 
 def check_pattern(G,cycle_list, sign_list, poset=False, make_conic_basis=False, undefined_cycles=False):
     """
-    #check if cycle pattern is valid
-    #G- graph
-    #cycle_list - list of all cycles
-    #sign_list - list of signs of cycles in same order as cycle_list. Sign can be '-', '+' or 0. If undefined_cycles is true, then 0 means we don't prescribe its sign
-    #poset - construct the partial order of the cycles
-    #make_conic_basis - find the signed cycle basis
-    #undefined_cycles - Interpret 0 as undefined instead of a 0-weight cycle
+    check if cycle pattern is valid
+    :param G: graph
+    :param cycle_list: list of all cycles, each represented by a list of vertices
+    :param sign_list: list of signs of cycles in same order as cycle_list.
+        Sign can be '-', '+' or 0. If undefined_cycles is true, then 0 means we don't prescribe its sign
+    :param poset: if true, construct a partial order of the cycles, with inequalities defined by whether
+        one can derive the sign of one cycle based on the other
+    :param make_conic_basis: if true, find the set of cycles that form facets of the (closed) realization cone
+    :param undefined_cycles: Interpret 0 as undefined instead of a 0-weight cycle
+    :return: number of cycles of the smallest found (not a thorough search!) non-realizability witness
+        returns -infinity if realizable
     """
     m = len(G.edges)
     E=G.edges
     V=G.vertices
     A=[]
     b=[]
-    for i in range(len(cycle_list)): #construct LP
+    for i in range(len(cycle_list)): #construct LP of realization cone
         C=cycle_list[i]
         s=sign_list[i]
         if s == '+':
@@ -183,7 +208,7 @@ def check_pattern(G,cycle_list, sign_list, poset=False, make_conic_basis=False, 
     c = [-1*x for x in a] # so LP is not unbounded
     res = linprog(c, A, b, bounds=(None, None))
     A=AAB
-    if res.status == 0:
+    if res.status == 0: #if feasible
         print('A solution was found')
         vec = res.x
         for ii in range(m):
@@ -249,7 +274,7 @@ def check_pattern(G,cycle_list, sign_list, poset=False, make_conic_basis=False, 
                 indices = [indices[iii] for iii in range(len(indices)) if iii != count]
             else:
                 count +=1
-        #print smallest set of invalid cycles
+        #print smallest found set of invalid cycles
         print('Minimal set of cycles that is invalid:')
         for ind in indices:
             L=cycle_list[ind]
@@ -262,7 +287,7 @@ def check_pattern(G,cycle_list, sign_list, poset=False, make_conic_basis=False, 
             print(strr+' ',sgn)
         return len(indices)
     else:
-        print('???????')
+        raise ValueError('Unexpected LP status:',res.status)
         return -1
 
 def construct_big_witness_graph(N):
@@ -456,14 +481,14 @@ def find_smallest_witness(N):
 
 def conic_basis(G, A, b, c, cycle_list, sign_list):
     """
-    Subroutine for finding the smallest +-cycles and the smallest --cycles
-    :param G:
-    :param A:
-    :param b:
-    :param c:
-    :param cycle_list:
-    :param sign_list:
-    :return: pluscycs, mincycs : The smallest +-cycles resp. biggest --cycles
+    Subroutine for finding the + cycles and the - cycles that form facets of the closed realization cone
+    :param G: graph
+    :param A: matrix from realization cone LP
+    :param b: vector from realization cone LP
+    :param c: objective from realization cone LP
+    :param cycle_list: list of cycles
+    :param sign_list: list of signs
+    :return: pluscycs, mincycs : The + cycles resp. - cycles that form facets
     """
     N = len(cycle_list)
     H = MyGraph(True, N, True)
@@ -544,12 +569,20 @@ def poset_graph(G, A, b, c, cycle_list, sign_list):
 def check_parity_valid(G,L, SL):
     """
     check if there is a parity game that has cycles L and sign pattern SL
+    Note: this algorithm can be polynomial-time, since its input is a list
+    of all cycles, and not a Boolean circuit or a list of edge weights
+    :param G: graph
+    :param L: list of cycles
+    :param SL: list of signs
+    :return: parity_realizable, prios
+    parity_realizable: Boolean indicating whether the pattern is parity-realizable
+    prios: list of edge priorities, in the same order as G.edges, equals 0 if not parity-realizable
     """
     E = G.edges
     m=len(E)
     prios = [0 for i in range(len(E))]
     EL = [[] for j in range(len(E))] #list of cycle numbers per edge
-    for i in range(len(L)):  # construct LP
+    for i in range(len(L)):
         C = L[i]
         for j in range(len(C) - 1):
             for k in range(m):
@@ -562,6 +595,9 @@ def check_parity_valid(G,L, SL):
     current_prio = 2*len(E)
     remaining_edges = set(range(len(E)))
     while len(remaining_cycles)>0:
+        #repeatedly check if there is an edge only contained in positive or negative cycles
+        #if yes, assign it the highest priority
+        #if no, the pattern is not parity-realizable
         changed = False
         for e in remaining_edges:
             pluspos = True #if edge can be large even
@@ -614,9 +650,7 @@ if __name__=='__main__':
         g.graph_attr['scale'] = '1'
         g.render('test.gv', format='png', cleanup=True, quiet=True, engine="dot", view=True).replace('\\', '/')
 
-    G, cycle_list, sign_list, res = find_smallest_witness(10)
+    G, cycle_list, sign_list, res = find_smallest_witness(6)
     #print('Cycle pattern:')
     #print_cycle_pattern(cycle_list, sign_list)
     #check_pattern(G, cycle_list, sign_list, 0, poset=False)
-
-    #help(check_parity_valid)
